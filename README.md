@@ -55,6 +55,3 @@ Besides the aforementioned directories, a temporary `configs` directory will be 
 | `p` | Purge all existing (stormdrain) containers, images, volumes, and `.stormdrain` directories |
 | `a` | Attach into selected container (suspends TUI) |
 
----
-
-###### Mirrors: [Codeberg](https://codeberg.org/2ug/stormdrain) / [Github](https://github.com/200ug/stormdrain)
