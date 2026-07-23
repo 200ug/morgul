@@ -167,7 +167,7 @@ var Hostnames = []string{
 	"inquisitor",
 	"sinkchart",
 	"hiereg",
-	"presciensce",
+	"prescience",
 	"favrashi",
 	"baraka",
 	"sufi",
