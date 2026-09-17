@@ -1,57 +1,69 @@
-# stormdrain
+# morgul
 
 Opinionated take on a declarative dev container management tool. Built directly on top of rootless Podman command line interface.
-
-![TUI landing page](./tui.png)
 
 ## Basics
 
 ### Quickstart
 
-Run the included `scripts/init.sh` shell script to copy the example profiles and the base template into `~/.config/stormdrain`. Then run `scripts/build.sh` which produces the plug-and-play binaries into `bin`.
+Run the included `scripts/init.sh` shell script to copy the example modules, presets, and the base template into `~/.config/morgul`. Then run `scripts/build.sh` which produces the plug-and-play binary into `bin`.
 
-### Profiles
+### Modules & presets
 
-Declarative JSON configuration files, "profiles", form up the base layer for the tool's functionality. The hardcoded location for these is currently `~/.config/stormdrain/profiles`. More comprehensive examples of these config files are available in `example_profiles`, but in general the system abides the following directives:
+Configuration is split into two layers:
 
-- `shell`: Login shell for the container user (`dev` by default), defaults to `/bin/zsh`
-- `packages`: List of APT packages to install during image build
-- `installers`: List of shell commands (or multiple chained commands) executed during image build (by the container user, needs `sudo` for root)
-    - An unstructured way to expand the configuration to be compatible with e.g. multistep installation scripts (see `example_profiles/golang.json`)
-- `configs`: Host files/dirs to copy into the image at build time
-    - Format: `{ "src": <path>, "dst": <path>, "exclude": <pattern> }`
-- `project_mount`: Whether to bind-mount the project directory into the container at `/home/dev/<project>` and set it as the working dir, defaults to `true`
-- `ports`: Host-to-container port forwarding
+- **Modules** (`~/.config/morgul/modules/*.json`): composable units of tooling. Each module declares `packages` (APT), `installers` (shell commands run at build time), `configs` (host files/dirs copied into the image), plus runtime `ports`, `virtual_volumes`, and `env_files`.
+- **Presets** (`~/.config/morgul/presets/*.json`): named, ordered combinations of modules plus project-level defaults (`shell`, `project_mount`).
+
+When creating a container you can pick a preset, or choose "custom" and select modules ad-hoc. The resolved module list is persisted to the container's labels and `pod_spec.json`, so the details pane always shows which preset/modules a container was built from.
+
+The directives shared by modules and presets are:
+
+- `packages`: List of APT packages to install during image build
+- `installers`: List of shell commands (or chained commands) executed during image build by the container user (use `sudo` for root)
+- `configs`: Host files/dirs to copy into the image at build time
+    - Format: `{ "src": <path>, "dst": <path>, "exclude": <pattern> }`. Symlinks are followed, so configs can be managed with tools like `stow`.
+- `ports`: Host-to-container port forwarding
     - Format: `{ "host": <port>, "container": <port> }`
-- `virtual_volumes`: Named podman volumes (owned by the container user, `dev` by default) for persistent container-local storage (e.g. caches)
+- `virtual_volumes`: Named podman volumes (owned by the container user) for persistent container-local storage (e.g. caches)
     - Format: `{ "name": <name>, "path": <path_on_container> }`
 - `env_files`: Host `.env` files whose key-value pairs are injected as environment variables into the container at runtime
 
-Notably variables like ports, volume mounts, project mount, etc. are also configurable via the container recreation view (mapped to `e` by default) so that the profiles don't need to be adjusted to accompany every little per-project modification.
+Notably ports, volume mounts, project mount, and env files are also configurable via the container edit view (mapped to `e`) so presets don't need to be adjusted for every per-project tweak.
 
 ### Container creation
 
-During the container creation process, the configurations from the selected profile and the creation view are injected into a base template container image (`Dockerfile.base` by default, uses `buildpack-deps:trixie` as the base image) by replacing the existing placeholders (`{{PROFILE_PKGS}}`, `{{PROFILE_DIRS}}`, `{{PROFILE_INSTALLERS}}`, and `{{PROFILE_CONFIGS}}`).
+During creation, the resolved modules are injected into the base template (`Dockerfile.base`, based on `buildpack-deps:trixie`) by replacing the placeholders (`{{PROFILE_PKGS}}`, `{{PROFILE_DIRS}}`, `{{PROFILE_INSTALLERS}}`, and `{{PROFILE_CONFIGS}}`).
 
-To persist the container configurations across (container) reboots and recreations, a `.stormdrain` directory is created to the given project root. Inside it will be scoped directories for each container of that particular workspace, and within those subdirectories will be the following files:
+To persist configuration across reboots and recreations, a `.morgul` directory is created in the project root. Inside it are per-container scoped directories containing:
 
-- `Dockerfile.sd`: The substituted Dockerfile where the user-given configurations are combined with `Dockerfile.base`
-- `pod_spec.json`: The actual container config, stores metadata like name, project path, image tag, volume mounts, etc.
-- `build.log`/`recreate.log`: Log files produced during initial container creation and recreation (triggered by configuration changes)
+- `Dockerfile.sd`: The substituted Dockerfile combining the base template with the resolved modules
+- `pod_spec.json`: The container config (name, project path, image tag, preset, modules, mounts, etc.)
+- `build.log`/`recreate.log`: Log files from initial creation and recreation
 
-Besides the aforementioned directories, a temporary `configs` directory will be created to stage the copiable dotfiles into the container's build scope. It's cleaned up automatically after the container creation process finishes.
+A temporary `configs` directory stages the copied dotfiles into the build context and is cleaned up automatically after creation.
 
 ### Keyboard mappings
 
-|  Key | Action |
-| - | - |
-| `j/k` | Navigation (down/up) |
-| `q` | Quit |
-| `n` | New container (via form) |
-| `e` | Edit container config (ports, volumes, env files, project mount) |
-| `s` | Stop selected container |
-| `x` | Kill (force stop) selected container |
-| `d` | Remove selected container |
-| `p` | Purge all existing (stormdrain) containers, images, volumes, and `.stormdrain` directories |
-| `a` | Attach into selected container (suspends TUI) |
+The interface is modal, vim-style:
 
+| Key | Action |
+| - | - |
+| type (insert mode) | fuzzy filter by container name; top match auto-selected |
+| `jk` / `ESC` | leave insert mode (default mode) |
+| `i` | enter insert mode |
+| `j`/`k` or `↑`/`↓` | move selection |
+| `ENTER` | attach to selected container |
+| `n` | new container (preset or custom modules) |
+| `e` | edit container config (ports, volumes, env files, project mount) |
+| `s` | stop selected container |
+| `x` | kill (force stop) selected container |
+| `d` | remove selected container |
+| `p` | purge all containers, images, volumes, and `.morgul` dirs |
+| `q` | quit |
+
+The screen is split vertically into two panes: the left shows the search box, the container list (stopped containers dimmed), and the total count; the right shows details of the selected container (preset, modules, ports, mounts, etc.).
+
+### Deleting without the project root
+
+Containers whose project directory (and thus `pod_spec.json`) has been removed can still be stopped, killed, and deleted — the required metadata is inferred from the container listing and its labels.

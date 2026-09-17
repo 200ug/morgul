@@ -1,0 +1,12 @@
+{
+  "id": "opencode",
+  "description": "opencode and its config/auth",
+  "installers": [
+    "curl -fsSL https://opencode.ai/install | bash"
+  ],
+  "configs": [
+    { "src": "~/.config/zsh", "dst": "~/.config/zsh" },
+    { "src": "~/.config/opencode/opencode.json", "dst": "~/.config/opencode/opencode.json" },
+    { "src": "~/.local/share/opencode/auth.json", "dst": "~/.local/share/opencode/auth.json" }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "id": "base",
+  "description": "standard shell tools",
+  "packages": ["ripgrep", "zsh-autosuggestions", "fzf", "tmux", "tree"],
+  "configs": [
+    { "src": "~/.config/tmux", "dst": "~/.config/tmux" },
+    { "src": "~/.zshrc", "dst": "~/." }
+  ]
+}

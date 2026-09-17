@@ -1,0 +1,7 @@
+{
+  "id": "opencode",
+  "description": "opencode, nvim, & standard tools",
+  "shell": "/bin/zsh",
+  "project_mount": false,
+  "modules": ["base", "nvim", "opencode"]
+}

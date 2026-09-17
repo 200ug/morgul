@@ -1,0 +1,15 @@
+{
+  "id": "golang",
+  "description": "go runtime, lsp, and module caches",
+  "packages": ["gopls"],
+  "installers": [
+    "curl -L -o /tmp/go-linux-amd64.tar.gz https://go.dev/dl/go1.26.2.linux-amd64.tar.gz && sudo rm -rf /usr/local/go && sudo tar -C /usr/local -xzf /tmp/go-linux-amd64.tar.gz"
+  ],
+  "ports": [
+    { "host": 8080, "container": 8080 }
+  ],
+  "virtual_volumes": [
+    { "path": "/go/pkg/mod", "name": "go-mod-cache" },
+    { "path": "/home/dev/.cache/go-build", "name": "go-build-cache" }
+  ]
+}

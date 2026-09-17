@@ -2,6 +2,5 @@
 
 # manually runnable pre-commit script
 
-go test -v ./internal/...
+go test -v ./...
 gofmt -w .
-
