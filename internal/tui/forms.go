@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 
 	"github.com/charmbracelet/bubbletea"
@@ -53,7 +52,7 @@ func (m model) resetToMain() (model, tea.Cmd) {
 
 func (m model) notifyError(text string) (model, tea.Cmd) {
 	m2, cmd := m.resetToMain()
-	m2.notif = notification{text: text, isErr: true, setAt: time.Now()}
+	m2.notif = newNotification(text, true, false)
 	return m2, cmd
 }
 
@@ -169,7 +168,7 @@ func (m model) finalizeCreate() (model, tea.Cmd) {
 	}
 
 	m2, cmd := m.resetToMain()
-	m2.notif = notification{text: "Creating container...", setAt: time.Now()}
+	m2.notif = newNotification("Creating container...", false, true)
 	return m2, tea.Batch(cmd, createCmd(m.client, bp, m.store.BaseDockerfile(), m.userHome, abs))
 }
 
@@ -253,7 +252,7 @@ func (m model) finishEdit() (model, tea.Cmd) {
 	spec.EnvFiles = envs
 
 	m2, cmd := m.resetToMain()
-	m2.notif = notification{text: "Recreating container...", setAt: time.Now()}
+	m2.notif = newNotification("Recreating container...", false, true)
 	return m2, tea.Batch(cmd, recreateCmd(m.client, spec))
 }
 
@@ -300,7 +299,7 @@ func (m model) finishConfirm() (model, tea.Cmd) {
 		return m2, cmd
 	}
 	if s.kind == "purge" {
-		m2.notif = notification{text: "Purging...", setAt: time.Now()}
+		m2.notif = newNotification("Purging...", false, true)
 		return m2, tea.Batch(cmd, purgeCmd(m.client, m.containers))
 	}
 	var c *podman.Container
@@ -311,10 +310,10 @@ func (m model) finishConfirm() (model, tea.Cmd) {
 		}
 	}
 	if c == nil {
-		m2.notif = notification{text: "Error: container not found", isErr: true, setAt: time.Now()}
+		m2.notif = newNotification("Error: container not found", true, false)
 		return m2, cmd
 	}
-	m2.notif = notification{text: "Removing container...", setAt: time.Now()}
+	m2.notif = newNotification("Removing container...", false, true)
 	return m2, tea.Batch(cmd, removeCmd(m.client, *c))
 }
 

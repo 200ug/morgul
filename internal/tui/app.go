@@ -55,7 +55,19 @@ const (
 type notification struct {
 	text  string
 	isErr bool
+	// setAt is zero for persistent notifications, which survive the TTL wipe
+	// until they are replaced by a later notification.
 	setAt time.Time
+}
+
+// newNotification builds a notification. Persistent notifications stay until
+// they are replaced; others are cleared automatically after notifTTL.
+func newNotification(text string, isErr, persistent bool) notification {
+	n := notification{text: text, isErr: isErr}
+	if !persistent {
+		n.setAt = time.Now()
+	}
+	return n
 }
 
 type createState struct {
@@ -154,7 +166,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case containersMsg:
 		if msg.err != nil {
-			m.notif = notification{text: "Error: " + msg.err.Error(), isErr: true, setAt: time.Now()}
+			m.notif = newNotification("Error: "+msg.err.Error(), true, false)
 			return m, nil
 		}
 		m.containers = msg.containers
@@ -163,21 +175,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case opResultMsg:
 		if msg.err != nil {
-			m.notif = notification{text: "Error: " + msg.err.Error(), isErr: true, setAt: time.Now()}
+			m.notif = newNotification("Error: "+msg.err.Error(), true, false)
 		} else {
 			text := msg.notif
 			if msg.warn != "" {
 				text += " (" + msg.warn + ")"
 			}
-			m.notif = notification{text: text, setAt: time.Now()}
+			m.notif = newNotification(text, false, false)
 		}
 		return m, listContainersCmd(m.client)
 
 	case attachDoneMsg:
 		if msg.err != nil {
-			m.notif = notification{text: "Error: " + msg.err.Error(), isErr: true, setAt: time.Now()}
+			m.notif = newNotification("Error: "+msg.err.Error(), true, false)
 		} else {
-			m.notif = notification{text: "Detached from container", setAt: time.Now()}
+			m.notif = newNotification("Detached from container", false, false)
 		}
 		return m, listContainersCmd(m.client)
 
