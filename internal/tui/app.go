@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -36,6 +37,10 @@ const (
 	podMinW  = 20
 )
 
+// confirmKeyRe matches the confirm field's standalone accept/reject shortcut
+// keys, which huh renders as lowercase "y"/"n".
+var confirmKeyRe = regexp.MustCompile(`\b[yn]\b`)
+
 type mode int
 
 const (
@@ -55,13 +60,13 @@ const (
 type notification struct {
 	text  string
 	isErr bool
-	// setAt is zero for persistent notifications, which survive the TTL wipe
+	// Zero for persistent notifications, which survive the TTL wipe
 	// until they are replaced by a later notification.
 	setAt time.Time
 }
 
-// newNotification builds a notification. Persistent notifications stay until
-// they are replaced; others are cleared automatically after notifTTL.
+// Builds a notification. Persistent notifications stay until they are replaced;
+// others are cleared automatically after notifTTL.
 func newNotification(text string, isErr, persistent bool) notification {
 	n := notification{text: text, isErr: isErr}
 	if !persistent {
@@ -367,9 +372,49 @@ func (m model) actOnSelected(force bool) tea.Cmd {
 
 func (m model) View() string {
 	if m.page != pageMain && m.form != nil {
-		return m.form.View()
+		return m.formView()
 	}
 	return m.mainView()
+}
+
+// Renders the active form wrapped in the same border and frame padding as the
+// main view.
+func (m model) formView() string {
+	m.form.WithWidth(m.formWidth())
+	v := strings.TrimRight(m.form.View(), "\n")
+	v = capitalizeConfirmKeys(v)
+	if v == "" {
+		return ""
+	}
+	boxed := boxStyle(lipgloss.Width(v), lipgloss.Height(v)).Render(v)
+	return lipgloss.NewStyle().Padding(padTop, padRight, padBottom, padLeft).Render(boxed)
+}
+
+// NOTE: huh's confirm field hardcodes the accept/reject shortcut keys as
+// lowercase "y"/"n" during rendering, ignoring the keymap. Capitalize just
+// those two on the (unstyled) help footer line.
+func capitalizeConfirmKeys(v string) string {
+	lines := strings.Split(v, "\n")
+	last := lines[len(lines)-1]
+	if !strings.Contains(last, " • ") {
+		return v
+	}
+	lines[len(lines)-1] = confirmKeyRe.ReplaceAllStringFunc(last, strings.ToUpper)
+	return strings.Join(lines, "\n")
+}
+
+// Width the form should render at, so its box and frame padding stay within the
+// terminal. Uses huh's default 80 columns when there is room.
+func (m model) formWidth() int {
+	// border (2) + box padding (2*boxHPad) + frame padding (padLeft+padRight)
+	avail := m.width - 2 - 2*boxHPad - padLeft - padRight
+	if avail > 80 {
+		avail = 80
+	}
+	if avail < 1 {
+		avail = 1
+	}
+	return avail
 }
 
 func (m model) mainView() string {

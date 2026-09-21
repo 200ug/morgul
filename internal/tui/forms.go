@@ -93,19 +93,19 @@ func (m model) buildCreateForm() *huh.Form {
 		}
 		opts = append(opts, huh.NewOption("custom...", "custom"))
 		sel := huh.NewSelect[string]().Title("Profile").Options(opts...).Value(&s.profile).Filtering(true)
-		return huh.NewForm(huh.NewGroup(sel))
+		return huh.NewForm(huh.NewGroup(sel)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
 	case 1:
 		opts := make([]huh.Option[string], 0, len(s.modlist))
 		for _, mod := range s.modlist {
 			opts = append(opts, huh.NewOption(mod.ID, mod.ID))
 		}
 		ms := huh.NewMultiSelect[string]().Title("Modules").Options(opts...).Value(&s.modules).Filtering(true)
-		return huh.NewForm(huh.NewGroup(ms))
+		return huh.NewForm(huh.NewGroup(ms)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
 	default:
 		pathInput := huh.NewInput().Title("Project path").Value(&s.path).SuggestionsFunc(m.pathSuggestions, nil)
 		shellInput := huh.NewInput().Title("Shell").Value(&s.shell)
 		mount := huh.NewConfirm().Title("Project mount").Value(&s.mount)
-		return huh.NewForm(huh.NewGroup(pathInput, shellInput, mount))
+		return huh.NewForm(huh.NewGroup(pathInput, shellInput, mount)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
 	}
 }
 
@@ -222,7 +222,7 @@ func (m model) buildEditForm() *huh.Form {
 	vols := huh.NewInput().Title("Volumes (name:path)").Value(&s.volsStr)
 	envs := huh.NewInput().Title("Env files (path)").Value(&s.envStr)
 	mount := huh.NewConfirm().Title("Project mount").Value(&s.mount)
-	return huh.NewForm(huh.NewGroup(ports, vols, envs, mount))
+	return huh.NewForm(huh.NewGroup(ports, vols, envs, mount)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
 }
 
 func (m model) finishEdit() (model, tea.Cmd) {
@@ -289,7 +289,7 @@ func (m model) buildConfirmForm() *huh.Form {
 			Affirmative("Remove").Negative("Cancel").
 			Value(&s.ok)
 	}
-	return huh.NewForm(huh.NewGroup(confirm))
+	return huh.NewForm(huh.NewGroup(confirm)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
 }
 
 func (m model) finishConfirm() (model, tea.Cmd) {

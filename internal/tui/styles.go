@@ -1,14 +1,29 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
+)
+
+// Shared palette for the whole TUI; every color is defined here and reused by
+// both the main view and the form themes.
+const (
+	colorAccent   = lipgloss.Color("#5FD7E0") // selection, labels, active focus
+	colorDim      = lipgloss.Color("#6B6B6B") // muted/dimmed text
+	colorSuccess  = lipgloss.Color("#7EC87E") // success/info
+	colorError    = lipgloss.Color("#E05A5A") // errors
+	colorWarning  = lipgloss.Color("#E0C060") // mode indicator
+	colorText     = lipgloss.Color("#C9C9C9") // default foreground
+	colorOnAccent = lipgloss.Color("#1A1A1A") // text placed on the accent color
+)
 
 var (
-	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
-	dimStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	notifInfo     = lipgloss.NewStyle().Foreground(lipgloss.Color("10"))
-	notifError    = lipgloss.NewStyle().Foreground(lipgloss.Color("9"))
-	modeStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	labelStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
+	dimStyle      = lipgloss.NewStyle().Foreground(colorDim)
+	notifInfo     = lipgloss.NewStyle().Foreground(colorSuccess)
+	notifError    = lipgloss.NewStyle().Foreground(colorError)
+	modeStyle     = lipgloss.NewStyle().Foreground(colorWarning)
+	labelStyle    = lipgloss.NewStyle().Foreground(colorAccent)
 )
 
 func padWidth(w int) lipgloss.Style {
@@ -27,3 +42,107 @@ func boxStyle(contentW, contentH int) lipgloss.Style {
 		MaxWidth(contentW + 2*boxHPad + 2).
 		MaxHeight(contentH + 2)
 }
+
+// Builds a huh theme from the shared palette so the create/edit/confirm forms
+// match the main view.
+func formTheme() *huh.Theme {
+	t := huh.ThemeBase()
+
+	t.Focused.Base = t.Focused.Base.BorderForeground(colorDim)
+	t.Focused.Card = t.Focused.Base
+	t.Focused.Title = t.Focused.Title.Foreground(colorAccent).Bold(true)
+	t.Focused.NoteTitle = t.Focused.NoteTitle.Foreground(colorAccent).Bold(true)
+	t.Focused.Directory = t.Focused.Directory.Foreground(colorAccent)
+	t.Focused.Description = t.Focused.Description.Foreground(colorDim)
+	t.Focused.ErrorIndicator = t.Focused.ErrorIndicator.Foreground(colorError)
+	t.Focused.ErrorMessage = t.Focused.ErrorMessage.Foreground(colorError)
+	t.Focused.SelectSelector = t.Focused.SelectSelector.Foreground(colorAccent)
+	t.Focused.NextIndicator = t.Focused.NextIndicator.Foreground(colorAccent)
+	t.Focused.PrevIndicator = t.Focused.PrevIndicator.Foreground(colorAccent)
+	t.Focused.Option = t.Focused.Option.Foreground(colorText)
+	t.Focused.MultiSelectSelector = t.Focused.MultiSelectSelector.Foreground(colorAccent)
+	t.Focused.SelectedOption = t.Focused.SelectedOption.Foreground(colorAccent).Bold(true)
+	t.Focused.SelectedPrefix = t.Focused.SelectedPrefix.Foreground(colorAccent)
+	t.Focused.UnselectedOption = t.Focused.UnselectedOption.Foreground(colorText)
+	t.Focused.UnselectedPrefix = t.Focused.UnselectedPrefix.Foreground(colorDim)
+
+	button := lipgloss.NewStyle().Padding(0, 2).MarginRight(1)
+	t.Focused.FocusedButton = button.Foreground(colorOnAccent).Background(colorAccent).Bold(true)
+	t.Focused.BlurredButton = button.Foreground(colorDim)
+
+	t.Focused.TextInput.Cursor = t.Focused.TextInput.Cursor.Foreground(colorAccent)
+	t.Focused.TextInput.Placeholder = t.Focused.TextInput.Placeholder.Foreground(colorDim)
+	t.Focused.TextInput.Prompt = t.Focused.TextInput.Prompt.Foreground(colorAccent)
+
+	// NOTE: the shortcut keys stay unstyled so the confirm field's hardcoded
+	// lowercase "y"/"n" keys can be capitalized after rendering; only the
+	// action descriptions are dimmed to distinguish them from the keys.
+	t.Help.ShortKey = lipgloss.NewStyle()
+	t.Help.ShortDesc = lipgloss.NewStyle().Foreground(colorDim)
+	t.Help.ShortSeparator = lipgloss.NewStyle()
+
+	t.Blurred = t.Focused
+	t.Blurred.Base = t.Blurred.Base.BorderStyle(lipgloss.HiddenBorder())
+	t.Blurred.Card = t.Blurred.Base
+	t.Blurred.NextIndicator = lipgloss.NewStyle()
+	t.Blurred.PrevIndicator = lipgloss.NewStyle()
+
+	t.Group.Title = t.Focused.Title
+	t.Group.Description = t.Focused.Description
+	return t
+}
+
+// NOTE: this custom keymap exists only to capitalize huh's lowercase help text
+// (shortcuts and actions); the actual keybindings are unchanged. It is built
+// once at package init and shared read-only, so there is no per-render cost.
+var formKeyMap = func() *huh.KeyMap {
+	km := huh.NewDefaultKeyMap()
+
+	km.Input.AcceptSuggestion.SetHelp("Ctrl+E", "Complete")
+	km.Input.Prev.SetHelp("Shift+Tab", "Back")
+	km.Input.Next.SetHelp("Enter", "Next")
+	km.Input.Submit.SetHelp("Enter", "Submit")
+
+	km.Select.Prev.SetHelp("Shift+Tab", "Back")
+	km.Select.Next.SetHelp("Enter", "Select")
+	km.Select.Submit.SetHelp("Enter", "Submit")
+	km.Select.Up.SetHelp("↑", "Up")
+	km.Select.Down.SetHelp("↓", "Down")
+	km.Select.Left.SetHelp("←", "Left")
+	km.Select.Right.SetHelp("→", "Right")
+	km.Select.Filter.SetHelp("/", "Filter")
+	km.Select.SetFilter.SetHelp("Esc", "Set filter")
+	km.Select.ClearFilter.SetHelp("Esc", "Clear filter")
+	km.Select.HalfPageUp.SetHelp("Ctrl+U", "½ page up")
+	km.Select.HalfPageDown.SetHelp("Ctrl+D", "½ page down")
+	km.Select.GotoTop.SetHelp("G/Home", "Go to start")
+	km.Select.GotoBottom.SetHelp("G/End", "Go to end")
+
+	km.MultiSelect.Prev.SetHelp("Shift+Tab", "Back")
+	km.MultiSelect.Next.SetHelp("Enter", "Confirm")
+	km.MultiSelect.Submit.SetHelp("Enter", "Submit")
+	km.MultiSelect.Toggle.SetHelp("X", "Toggle")
+	km.MultiSelect.Up.SetHelp("↑", "Up")
+	km.MultiSelect.Down.SetHelp("↓", "Down")
+	km.MultiSelect.Filter.SetHelp("/", "Filter")
+	km.MultiSelect.SetFilter.SetHelp("Enter", "Set filter")
+	km.MultiSelect.ClearFilter.SetHelp("Esc", "Clear filter")
+	km.MultiSelect.HalfPageUp.SetHelp("Ctrl+U", "½ page up")
+	km.MultiSelect.HalfPageDown.SetHelp("Ctrl+D", "½ page down")
+	km.MultiSelect.GotoTop.SetHelp("G/Home", "Go to start")
+	km.MultiSelect.GotoBottom.SetHelp("G/End", "Go to end")
+	km.MultiSelect.SelectAll.SetHelp("Ctrl+A", "Select all")
+	km.MultiSelect.SelectNone.SetHelp("Ctrl+A", "Select none")
+
+	km.Confirm.Next.SetHelp("Enter", "Next")
+	km.Confirm.Prev.SetHelp("Shift+Tab", "Back")
+	km.Confirm.Toggle.SetHelp("←/→", "Toggle")
+	km.Confirm.Submit.SetHelp("Enter", "Submit")
+	// NOTE: huh's confirm field overrides the accept/reject help keys with
+	// lowercase "y"/"n" during rendering, so those two are fixed separately
+	// in formView.
+	km.Confirm.Accept.SetHelp("Y", "Yes")
+	km.Confirm.Reject.SetHelp("N", "No")
+
+	return km
+}()
