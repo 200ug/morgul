@@ -406,7 +406,8 @@ func (m model) leftPaneWidth() int {
 	return w + paneGap
 }
 
-// Width of the widest container list entry (selection marker + name).
+// Width of the widest container list entry (selection marker, status tag, and
+// name).
 func (m model) listNaturalWidth() int {
 	max := 0
 	for _, c := range m.filtered {
@@ -414,7 +415,7 @@ func (m model) listNaturalWidth() int {
 			max = len(c.Name)
 		}
 	}
-	return max + 2
+	return max + 6
 }
 
 func (m model) leftPane(width, height int) string {
@@ -447,12 +448,17 @@ func (m model) listView(width, height int) string {
 	lines := make([]string, 0, height)
 	for i := start; i < len(m.filtered) && len(lines) < height; i++ {
 		c := m.filtered[i]
-		line := "  " + c.Name
+		status := "[d]"
+		if c.Running {
+			status = "[u]"
+		}
+		marker := "  "
 		if i == m.selected {
-			line = "▸ " + c.Name
+			marker = "▸ "
+		}
+		line := marker + status + " " + c.Name
+		if i == m.selected {
 			line = selectedStyle.Render(line)
-		} else if !c.Running {
-			line = dimStyle.Render(line)
 		}
 		lines = append(lines, line)
 	}
