@@ -18,6 +18,18 @@ import (
 const (
 	notifTTL  = 15 * time.Second
 	jkTimeout = 400 * time.Millisecond
+
+	// frame padding separating the app from the terminal edges
+	padTop    = 1
+	padBottom = 1
+	padLeft   = 2
+	padRight  = 2
+
+	// horizontal gap between the left and right panes
+	paneGap = 2
+
+	// minimum width of the left pane, so the search box stays usable
+	leftMinW = 22
 )
 
 type mode int
@@ -347,32 +359,23 @@ func (m model) View() string {
 }
 
 func (m model) mainView() string {
-	notifH := 0
-	if m.notif.text != "" {
-		notifH = 1
+	innerW := m.width - padLeft - padRight
+	innerH := m.height - padTop - padBottom
+	if innerW < 1 {
+		innerW = 1
 	}
-	paneH := m.height - notifH
-	if paneH < 1 {
-		paneH = 1
+	if innerH < 1 {
+		innerH = 1
 	}
-	leftW := m.width / 2
-	rightW := m.width - leftW
-	if leftW < 1 {
-		leftW = 1
-	}
+
+	leftW := m.leftPaneWidth()
+	rightW := innerW - leftW
 	if rightW < 1 {
 		rightW = 1
 	}
 
-	body := lipgloss.JoinHorizontal(lipgloss.Top, m.leftPane(leftW, paneH), m.detailsPane(rightW, paneH))
-
-	var out strings.Builder
-	if notifH > 0 {
-		out.WriteString(m.notifView())
-		out.WriteString("\n")
-	}
-	out.WriteString(body)
-	return out.String()
+	body := lipgloss.JoinHorizontal(lipgloss.Top, m.leftPane(leftW, innerH), m.detailsPane(rightW, innerH))
+	return lipgloss.NewStyle().Padding(padTop, padRight, padBottom, padLeft).Render(body)
 }
 
 func (m model) notifView() string {
@@ -382,15 +385,55 @@ func (m model) notifView() string {
 	return notifInfo.Render(m.notif.text)
 }
 
+// Width needed to fit the left pane's contents: the search box, the longest
+// container name, the status line, and the notification (if any).
+func (m model) leftPaneWidth() int {
+	w := leftMinW
+	if sw := lipgloss.Width(m.search.View()); sw > w {
+		w = sw
+	}
+	if lw := m.listNaturalWidth(); lw > w {
+		w = lw
+	}
+	if st := lipgloss.Width(m.statusText()); st > w {
+		w = st
+	}
+	if m.notif.text != "" {
+		if nw := lipgloss.Width(m.notif.text); nw > w {
+			w = nw
+		}
+	}
+	return w + paneGap
+}
+
+// Width of the widest container list entry (selection marker + name).
+func (m model) listNaturalWidth() int {
+	max := 0
+	for _, c := range m.filtered {
+		if len(c.Name) > max {
+			max = len(c.Name)
+		}
+	}
+	return max + 2
+}
+
 func (m model) leftPane(width, height int) string {
-	listH := height - 2
+	notifH := 0
+	if m.notif.text != "" {
+		notifH = 1
+	}
+	listH := height - 2 - notifH
 	if listH < 0 {
 		listH = 0
 	}
 	search := padWidth(width).Render(m.search.View())
 	list := m.listView(width, listH)
 	status := m.statusLine(width)
-	return lipgloss.JoinVertical(lipgloss.Left, search, list, status)
+	parts := []string{search, list, status}
+	if notifH > 0 {
+		parts = append(parts, padWidth(width).Render(m.notifView()))
+	}
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
 func (m model) listView(width, height int) string {
@@ -414,6 +457,14 @@ func (m model) listView(width, height int) string {
 		lines = append(lines, line)
 	}
 	return padWidth(width).Render(strings.Join(lines, "\n"))
+}
+
+func (m model) statusText() string {
+	mode := "INSERT"
+	if m.mode == normalMode {
+		mode = "NORMAL"
+	}
+	return fmt.Sprintf("%d container(s)  [%s]", len(m.containers), mode)
 }
 
 func (m model) statusLine(width int) string {
