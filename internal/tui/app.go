@@ -25,11 +25,15 @@ const (
 	padLeft   = 2
 	padRight  = 2
 
-	// horizontal gap between the left and right panes
-	paneGap = 2
+	// horizontal padding applied inside each bordered box
+	boxHPad = 1
 
-	// minimum width of the left pane, so the search box stays usable
-	leftMinW = 22
+	// blank rows between the list entries and the count/mode line
+	listMargin = 2
+
+	// minimum content widths so boxes stay usable on narrow terminals
+	listMinW = 20
+	podMinW  = 20
 )
 
 type mode int
@@ -349,8 +353,6 @@ func (m model) actOnSelected(force bool) tea.Cmd {
 	return stopCmd(m.client, c.Name, force)
 }
 
-// The TUI has no visible separators; panes are rendered with explicit widths
-// and joined flush.
 func (m model) View() string {
 	if m.page != pageMain && m.form != nil {
 		return m.form.View()
@@ -359,22 +361,75 @@ func (m model) View() string {
 }
 
 func (m model) mainView() string {
-	innerW := m.width - padLeft - padRight
-	innerH := m.height - padTop - padBottom
-	if innerW < 1 {
-		innerW = 1
+	maxW := m.width - padLeft - padRight
+	maxH := m.height - padTop - padBottom
+	if maxW < 1 {
+		maxW = 1
 	}
-	if innerH < 1 {
-		innerH = 1
-	}
-
-	leftW := m.leftPaneWidth()
-	rightW := innerW - leftW
-	if rightW < 1 {
-		rightW = 1
+	if maxH < 1 {
+		maxH = 1
 	}
 
-	body := lipgloss.JoinHorizontal(lipgloss.Top, m.leftPane(leftW, innerH), m.detailsPane(rightW, innerH))
+	podLines := m.podLines()
+
+	// content widths; the border (2) and padding (2*boxHPad) add 4 per box
+	listW := m.listContentWidth()
+	if listW < listMinW {
+		listW = listMinW
+	}
+	podW := 0
+	for _, l := range podLines {
+		if w := lipgloss.Width(l); w > podW {
+			podW = w
+		}
+	}
+	if podW < podMinW {
+		podW = podMinW
+	}
+	// keep the middle section within the terminal, truncating the pod first
+	if avail := maxW - 8 - listW; podW > avail {
+		podW = avail
+	}
+	if podW < podMinW {
+		podW = podMinW
+		listW = maxW - 8 - podW
+		if listW < 1 {
+			listW = 1
+		}
+	}
+
+	// middle height: list rows + margin + count/mode + blank, or the pod info
+	// plus one blank row; capped to the terminal
+	listRows := len(m.filtered)
+	if listRows < 1 {
+		listRows = 1 // "(no containers)" placeholder row
+	}
+	listH := listRows + listMargin + 2
+	podH := len(podLines) + 1
+	midH := listH
+	if podH > midH {
+		midH = podH
+	}
+	if cap := maxH - 8; midH > cap {
+		midH = cap
+	}
+	if midH < 1 {
+		midH = 1
+	}
+
+	// search and notification span the full middle width
+	fullW := listW + podW + 4
+	if fullW < 1 {
+		fullW = 1
+	}
+
+	search := boxStyle(fullW, 1).Render(m.search.View())
+	list := boxStyle(listW, midH).Render(m.listBox(listW, midH))
+	pod := boxStyle(podW, midH).Render(m.podBox(podW, podLines))
+	notif := boxStyle(fullW, 1).Render(m.notifView())
+
+	middle := lipgloss.JoinHorizontal(lipgloss.Top, list, pod)
+	body := lipgloss.JoinVertical(lipgloss.Top, search, middle, notif)
 	return lipgloss.NewStyle().Padding(padTop, padRight, padBottom, padLeft).Render(body)
 }
 
@@ -385,25 +440,13 @@ func (m model) notifView() string {
 	return notifInfo.Render(m.notif.text)
 }
 
-// Width needed to fit the left pane's contents: the search box, the longest
-// container name, the status line, and the notification (if any).
-func (m model) leftPaneWidth() int {
-	w := leftMinW
-	if sw := lipgloss.Width(m.search.View()); sw > w {
-		w = sw
-	}
-	if lw := m.listNaturalWidth(); lw > w {
-		w = lw
-	}
+// Width of the widest list entry or the status line, whichever is larger.
+func (m model) listContentWidth() int {
+	w := m.listNaturalWidth()
 	if st := lipgloss.Width(m.statusText()); st > w {
 		w = st
 	}
-	if m.notif.text != "" {
-		if nw := lipgloss.Width(m.notif.text); nw > w {
-			w = nw
-		}
-	}
-	return w + paneGap
+	return w
 }
 
 // Width of the widest container list entry (selection marker, status tag, and
@@ -418,49 +461,61 @@ func (m model) listNaturalWidth() int {
 	return max + 6
 }
 
-func (m model) leftPane(width, height int) string {
-	notifH := 0
-	if m.notif.text != "" {
-		notifH = 1
+// Content of the container list box: entries, a margin, the count/mode line,
+// and a trailing blank row.
+func (m model) listBox(width, height int) string {
+	rows := height - listMargin - 2
+	if rows < 0 {
+		rows = 0
 	}
-	listH := height - 2 - notifH
-	if listH < 0 {
-		listH = 0
+	return lipgloss.JoinVertical(lipgloss.Left,
+		m.listView(width, rows),
+		padWidth(width).Render(""),
+		padWidth(width).Render(""),
+		m.statusLine(width),
+		padWidth(width).Render(""),
+	)
+}
+
+func (m model) podBox(width int, lines []string) string {
+	rendered := make([]string, 0, len(lines))
+	for _, l := range lines {
+		rendered = append(rendered, padWidth(width).Render(l))
 	}
-	search := padWidth(width).Render(m.search.View())
-	list := m.listView(width, listH)
-	status := m.statusLine(width)
-	parts := []string{search, list, status}
-	if notifH > 0 {
-		parts = append(parts, padWidth(width).Render(m.notifView()))
-	}
-	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+	return strings.Join(rendered, "\n")
 }
 
 func (m model) listView(width, height int) string {
-	if len(m.filtered) == 0 {
-		return padWidth(width).Render(dimStyle.Render("  (no containers)"))
-	}
-	start := 0
-	if m.selected >= height {
-		start = m.selected - height + 1
+	if height <= 0 {
+		return ""
 	}
 	lines := make([]string, 0, height)
-	for i := start; i < len(m.filtered) && len(lines) < height; i++ {
-		c := m.filtered[i]
-		status := "[d]"
-		if c.Running {
-			status = "[u]"
+	if len(m.filtered) == 0 {
+		lines = append(lines, dimStyle.Render("  (no containers)"))
+	} else {
+		start := 0
+		if m.selected >= height {
+			start = m.selected - height + 1
 		}
-		marker := "  "
-		if i == m.selected {
-			marker = "▸ "
+		for i := start; i < len(m.filtered) && len(lines) < height; i++ {
+			c := m.filtered[i]
+			status := "[d]"
+			if c.Running {
+				status = "[u]"
+			}
+			marker := "  "
+			if i == m.selected {
+				marker = "▸ "
+			}
+			line := marker + status + " " + c.Name
+			if i == m.selected {
+				line = selectedStyle.Render(line)
+			}
+			lines = append(lines, line)
 		}
-		line := marker + status + " " + c.Name
-		if i == m.selected {
-			line = selectedStyle.Render(line)
-		}
-		lines = append(lines, line)
+	}
+	for len(lines) < height {
+		lines = append(lines, "")
 	}
 	return padWidth(width).Render(strings.Join(lines, "\n"))
 }
@@ -483,11 +538,11 @@ func (m model) statusLine(width int) string {
 	return padWidth(width).Render(dimStyle.Render(line))
 }
 
-func (m model) detailsPane(width, height int) string {
-	style := padWidth(width)
+// Lines shown in the pod info box.
+func (m model) podLines() []string {
 	c := m.selectedContainer()
 	if c == nil {
-		return style.Render(dimStyle.Render("No container selected"))
+		return []string{dimStyle.Render("No container selected")}
 	}
 
 	preset := c.Preset
@@ -515,14 +570,14 @@ func (m model) detailsPane(width, height int) string {
 		status = "running"
 	}
 
-	var b strings.Builder
-	fmt.Fprintf(&b, "%s %s\n", labelStyle.Render("Name:"), c.Name)
-	fmt.Fprintf(&b, "%s %s\n", labelStyle.Render("Status:"), status)
-	fmt.Fprintf(&b, "%s %s\n", labelStyle.Render("Preset:"), preset)
-	fmt.Fprintf(&b, "%s %s\n", labelStyle.Render("Modules:"), modules)
-	fmt.Fprintf(&b, "%s %s\n", labelStyle.Render("Image:"), c.ImageTag)
-	fmt.Fprintf(&b, "%s %s\n", labelStyle.Render("Project:"), c.ProjectPath)
-	fmt.Fprintf(&b, "%s %s\n", labelStyle.Render("Ports:"), ports)
-	fmt.Fprintf(&b, "%s %s\n", labelStyle.Render("Mounts:"), mounts)
-	return style.Render(b.String())
+	return []string{
+		labelStyle.Render("Name:") + " " + c.Name,
+		labelStyle.Render("Status:") + " " + status,
+		labelStyle.Render("Preset:") + " " + preset,
+		labelStyle.Render("Modules:") + " " + modules,
+		labelStyle.Render("Image:") + " " + c.ImageTag,
+		labelStyle.Render("Project:") + " " + c.ProjectPath,
+		labelStyle.Render("Ports:") + " " + ports,
+		labelStyle.Render("Mounts:") + " " + mounts,
+	}
 }
