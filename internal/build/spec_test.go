@@ -51,16 +51,6 @@ func TestNewSpec_DifferentContainersDifferentPaths(t *testing.T) {
 	}
 }
 
-func TestNewSpec_DefaultShell(t *testing.T) {
-	spec, err := NewSpec(&config.Blueprint{Name: "rust", Shell: ""}, "/tmp/testproject", "proj-laza", "laza")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if spec.Shell != config.DefaultShell {
-		t.Errorf("Shell: got %q, want %q", spec.Shell, config.DefaultShell)
-	}
-}
-
 func TestNewSpec_ImageTagIncludesModuleHash(t *testing.T) {
 	spec, err := NewSpec(testBlueprint("python"), "/tmp/testproject", "testproj-mentat", "mentat")
 	if err != nil {
@@ -149,7 +139,6 @@ func TestWriteToDisk_LoadSpec_RoundTrip(t *testing.T) {
 	spec, err := NewSpec(&config.Blueprint{
 		Name:           "golang",
 		Modules:        []string{"base", "golang"},
-		Shell:          "/bin/bash",
 		ProjectMount:   boolPtr(true),
 		VirtualVolumes: []config.VirtualVolume{{Name: "myvol", Path: "/data"}},
 		Ports:          []config.PortMap{{Host: 8080, Container: 80}},
@@ -168,8 +157,8 @@ func TestWriteToDisk_LoadSpec_RoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.ImageTag != spec.ImageTag || loaded.Shell != spec.Shell {
-		t.Error("round-trip mismatch on ImageTag/Shell")
+	if loaded.ImageTag != spec.ImageTag {
+		t.Error("round-trip mismatch on ImageTag")
 	}
 	if loaded.Preset != "golang" || len(loaded.Modules) != 2 {
 		t.Errorf("Preset/Modules: got %q / %v", loaded.Preset, loaded.Modules)
@@ -237,6 +226,27 @@ func TestSubstituteDockerfile_WritesToContainerScopedPath(t *testing.T) {
 	bp := testBlueprint("golang")
 	bp.ProjectMount = boolPtr(true)
 	if err := SubstituteDockerfile(bp, base, projectDir, "proj-mentat"); err != nil {
+		t.Fatal(err)
+	}
+
+	expected := filepath.Join(projectDir, ".morgul", "proj-mentat", "Dockerfile.sd")
+	if _, err := os.Stat(expected); os.IsNotExist(err) {
+		t.Errorf("Dockerfile.sd not found at %q", expected)
+	}
+}
+
+func TestSubstituteDockerfile_FollowsSymlink(t *testing.T) {
+	projectDir := t.TempDir()
+	real := t.TempDir()
+	content := "# t\n# {{PROFILE_PKGS}}\n# {{PROFILE_INSTALLERS}}\n# {{PROFILE_CONFIGS}}\n# {{PROFILE_DIRS}}\n"
+	os.WriteFile(filepath.Join(real, "Dockerfile.base"), []byte(content), 0644)
+
+	link := filepath.Join(projectDir, "Dockerfile.base")
+	if err := os.Symlink(filepath.Join(real, "Dockerfile.base"), link); err != nil {
+		t.Skipf("symlinks unsupported: %v", err)
+	}
+
+	if err := SubstituteDockerfile(testBlueprint("golang"), link, projectDir, "proj-mentat"); err != nil {
 		t.Fatal(err)
 	}
 

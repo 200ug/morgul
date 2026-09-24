@@ -46,3 +46,22 @@ func TestLoadColors_MalformedJSON(t *testing.T) {
 		t.Error("expected error for malformed colors.json, got nil")
 	}
 }
+
+func TestLoadColors_FollowsSymlink(t *testing.T) {
+	dir := t.TempDir()
+	real := t.TempDir()
+	if err := os.WriteFile(filepath.Join(real, "colors.json"), []byte(`{"accent":"#123456"}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(real, "colors.json"), filepath.Join(dir, "colors.json")); err != nil {
+		t.Skipf("symlinks unsupported: %v", err)
+	}
+
+	colors, err := (&Store{Dir: dir}).LoadColors()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if colors.Accent != "#123456" {
+		t.Errorf("accent: got %q, want #123456", colors.Accent)
+	}
+}
