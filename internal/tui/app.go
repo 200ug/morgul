@@ -123,7 +123,9 @@ type model struct {
 	width, height int
 }
 
-func New(client podman.Client, store *config.Store, userHome string) *model {
+func New(client podman.Client, store *config.Store, userHome string, colors config.Colors) *model {
+	applyColors(colors)
+
 	ti := textinput.New()
 	ti.Placeholder = "search containers..."
 	ti.Prompt = "> "

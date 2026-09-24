@@ -3,28 +3,52 @@ package tui
 import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
+
+	"codeberg.org/2ug/morgul/internal/config"
 )
 
-// Shared palette for the whole TUI; every color is defined here and reused by
-// both the main view and the form themes.
-const (
-	colorAccent   = lipgloss.Color("#5FD7E0") // selection, labels, active focus
-	colorDim      = lipgloss.Color("#6B6B6B") // muted/dimmed text
-	colorSuccess  = lipgloss.Color("#7EC87E") // success/info
-	colorError    = lipgloss.Color("#E05A5A") // errors
-	colorWarning  = lipgloss.Color("#E0C060") // mode indicator
-	colorText     = lipgloss.Color("#C9C9C9") // default foreground
-	colorOnAccent = lipgloss.Color("#1A1A1A") // text placed on the accent color
-)
-
+// Palette used by the whole TUI; every color is loaded from the config
+// directory (falling back to config.DefaultColors) and reused by both the main
+// view and the form themes.
 var (
-	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
-	dimStyle      = lipgloss.NewStyle().Foreground(colorDim)
-	notifInfo     = lipgloss.NewStyle().Foreground(colorSuccess)
-	notifError    = lipgloss.NewStyle().Foreground(colorError)
-	modeStyle     = lipgloss.NewStyle().Foreground(colorWarning)
-	labelStyle    = lipgloss.NewStyle().Foreground(colorAccent)
+	colorAccent   lipgloss.Color
+	colorDim      lipgloss.Color
+	colorSuccess  lipgloss.Color
+	colorError    lipgloss.Color
+	colorWarning  lipgloss.Color
+	colorText     lipgloss.Color
+	colorOnAccent lipgloss.Color
+
+	selectedStyle lipgloss.Style
+	dimStyle      lipgloss.Style
+	notifInfo     lipgloss.Style
+	notifError    lipgloss.Style
+	modeStyle     lipgloss.Style
+	labelStyle    lipgloss.Style
 )
+
+func init() {
+	applyColors(config.DefaultColors())
+}
+
+// Applies a palette to the shared color and style variables. Called once at
+// startup with the user's colors.
+func applyColors(c config.Colors) {
+	colorAccent = lipgloss.Color(c.Accent)
+	colorDim = lipgloss.Color(c.Dim)
+	colorSuccess = lipgloss.Color(c.Success)
+	colorError = lipgloss.Color(c.Error)
+	colorWarning = lipgloss.Color(c.Warning)
+	colorText = lipgloss.Color(c.Text)
+	colorOnAccent = lipgloss.Color(c.OnAccent)
+
+	selectedStyle = lipgloss.NewStyle().Bold(true).Foreground(colorAccent)
+	dimStyle = lipgloss.NewStyle().Foreground(colorDim)
+	notifInfo = lipgloss.NewStyle().Foreground(colorSuccess)
+	notifError = lipgloss.NewStyle().Foreground(colorError)
+	modeStyle = lipgloss.NewStyle().Foreground(colorWarning)
+	labelStyle = lipgloss.NewStyle().Foreground(colorAccent)
+}
 
 func padWidth(w int) lipgloss.Style {
 	return lipgloss.NewStyle().Width(w)

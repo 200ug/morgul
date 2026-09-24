@@ -24,7 +24,13 @@ func main() {
 	}
 	store := config.NewStore(userHome)
 
-	m := tui.New(client, store, userHome)
+	colors, err := store.LoadColors()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	m := tui.New(client, store, userHome, colors)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

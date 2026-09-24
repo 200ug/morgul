@@ -14,6 +14,7 @@ Configuration is split into two layers:
 
 - **Modules** (`~/.config/morgul/modules/*.json`): composable units of tooling. Each module declares `packages` (APT), `installers` (shell commands run at build time), `configs` (host files/dirs copied into the image), plus runtime `ports`, `virtual_volumes`, and `env_files`.
 - **Presets** (`~/.config/morgul/presets/*.json`): named, ordered combinations of modules plus project-level defaults (`shell`, `project_mount`).
+- **Colors** (`~/.config/morgul/colors.json`): optional TUI palette (`accent`, `dim`, `success`, `error`, `warning`, `text`, `on_accent`). Any omitted key falls back to the built-in default, so the file can hold a partial palette.
 
 When creating a container you can pick a preset, or choose "custom" and select modules ad-hoc. The resolved module list is persisted to the container's labels and `pod_spec.json`, so the details pane always shows which preset/modules a container was built from.
 
