@@ -1,7 +1,6 @@
 {
   "id": "golang",
   "description": "go toolchain & project mount",
-  "shell": "/bin/zsh",
   "project_mount": true,
   "modules": ["base", "golang"]
 }

@@ -1,7 +1,6 @@
 {
   "id": "default",
   "description": "nvim & standard tools",
-  "shell": "/bin/zsh",
   "project_mount": false,
   "modules": ["base", "nvim"]
 }
