@@ -17,24 +17,16 @@ func (r *Resolver) ResolvePreset(id string) (*Blueprint, error) {
 		return nil, err
 	}
 	bp.Name = preset.ID
-	bp.Shell = preset.Shell
-	if bp.Shell == "" {
-		bp.Shell = DefaultShell
-	}
 	bp.ProjectMount = preset.ProjectMount
 	return bp, nil
 }
 
-func (r *Resolver) ResolveCustom(moduleIDs []string, shell string, projectMount *bool) (*Blueprint, error) {
+func (r *Resolver) ResolveCustom(moduleIDs []string, projectMount *bool) (*Blueprint, error) {
 	bp, err := r.resolveModules(moduleIDs)
 	if err != nil {
 		return nil, err
 	}
 	bp.Name = "custom"
-	bp.Shell = shell
-	if bp.Shell == "" {
-		bp.Shell = DefaultShell
-	}
 	bp.ProjectMount = projectMount
 	return bp, nil
 }

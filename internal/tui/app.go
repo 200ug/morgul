@@ -80,7 +80,6 @@ type createState struct {
 	profile string // preset id, or "custom"
 	modules []string
 	path    string
-	shell   string
 	mount   bool
 	presets []config.Preset
 	modlist []config.Module

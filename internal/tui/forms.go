@@ -74,7 +74,6 @@ func (m model) startCreate() (model, tea.Cmd) {
 	m.createSt = &createState{
 		stage:   0,
 		path:    cwd,
-		shell:   config.DefaultShell,
 		presets: presets,
 		modlist: mods,
 	}
@@ -103,9 +102,8 @@ func (m model) buildCreateForm() *huh.Form {
 		return huh.NewForm(huh.NewGroup(ms)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
 	default:
 		pathInput := huh.NewInput().Title("Project path").Value(&s.path).SuggestionsFunc(m.pathSuggestions, nil)
-		shellInput := huh.NewInput().Title("Shell").Value(&s.shell)
 		mount := huh.NewConfirm().Title("Project mount").Value(&s.mount)
-		return huh.NewForm(huh.NewGroup(pathInput, shellInput, mount)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
+		return huh.NewForm(huh.NewGroup(pathInput, mount)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
 	}
 }
 
@@ -117,9 +115,6 @@ func (m model) finishCreateStage() (model, tea.Cmd) {
 			s.stage = 1
 		} else {
 			if p, err := m.store.LoadPreset(s.profile); err == nil {
-				if p.Shell != "" {
-					s.shell = p.Shell
-				}
 				if p.ProjectMount != nil {
 					s.mount = *p.ProjectMount
 				}
@@ -142,11 +137,10 @@ func (m model) finalizeCreate() (model, tea.Cmd) {
 	var bp *config.Blueprint
 	var err error
 	if s.profile == "custom" {
-		bp, err = m.resolver.ResolveCustom(s.modules, s.shell, &s.mount)
+		bp, err = m.resolver.ResolveCustom(s.modules, &s.mount)
 	} else {
 		bp, err = m.resolver.ResolvePreset(s.profile)
 		if err == nil {
-			bp.Shell = s.shell
 			mt := s.mount
 			bp.ProjectMount = &mt
 		}

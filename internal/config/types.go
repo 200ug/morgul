@@ -1,6 +1,8 @@
 package config
 
-const DefaultShell = "/bin/zsh"
+// DefaultShell is the program run when attaching to a container. tmux is used
+// so the user can pick their preferred shell via their own tmux.conf.
+const DefaultShell = "/usr/bin/tmux"
 
 // A host file/dir to copy into the image at build time.
 type Config struct {
@@ -38,7 +40,6 @@ type Module struct {
 type Preset struct {
 	ID           string   `json:"id"`
 	Description  string   `json:"description"`
-	Shell        string   `json:"shell"`
 	ProjectMount *bool    `json:"project_mount"`
 	Modules      []string `json:"modules"`
 }
@@ -48,7 +49,6 @@ type Preset struct {
 type Blueprint struct {
 	Name           string
 	Modules        []string
-	Shell          string
 	Packages       []string
 	Installers     []string
 	Configs        []Config

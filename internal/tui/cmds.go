@@ -120,16 +120,12 @@ func purgeCmd(client podman.Client, containers []podman.Container) tea.Cmd {
 
 func attachCmd(client podman.Client, c podman.Container) tea.Cmd {
 	return func() tea.Msg {
-		shell := config.DefaultShell
-		if spec, err := build.LoadSpec(c.ProjectPath, c.Name); err == nil && spec.Shell != "" {
-			shell = spec.Shell
-		}
 		if exists, running := client.ContainerExists(c.Name); exists && !running {
 			if err := client.StartContainer(c.Name); err != nil {
 				return attachDoneMsg{err: err}
 			}
 		}
-		return tea.ExecProcess(client.AttachCmd(c.Name, shell, podman.DetachKeys), func(err error) tea.Msg {
+		return tea.ExecProcess(client.AttachCmd(c.Name, config.DefaultShell, podman.DetachKeys), func(err error) tea.Msg {
 			return attachDoneMsg{err: err}
 		})()
 	}

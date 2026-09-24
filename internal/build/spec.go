@@ -22,7 +22,6 @@ type Spec struct {
 	Preset         string                 `json:"preset"`
 	Modules        []string               `json:"modules"`
 	ImageTag       string                 `json:"image_tag"`
-	Shell          string                 `json:"shell"`
 	ProjectPath    string                 `json:"project_path"`
 	ProjectMount   bool                   `json:"project_mount"`
 	BuildCtx       string                 `json:"-"`
@@ -39,10 +38,6 @@ func NewSpec(bp *config.Blueprint, projectPath, containerName, hostname string) 
 		return nil, err
 	}
 	projectName := filepath.Base(projectPath)
-	shell := bp.Shell
-	if shell == "" {
-		shell = config.DefaultShell
-	}
 
 	spec := &Spec{
 		ContainerName: containerName,
@@ -50,7 +45,6 @@ func NewSpec(bp *config.Blueprint, projectPath, containerName, hostname string) 
 		Preset:        bp.Name,
 		Modules:       bp.Modules,
 		ImageTag:      fmt.Sprintf("morgul-%s-%s-%s", bp.Name, projectName, moduleHash(bp.Modules)),
-		Shell:         shell,
 		ProjectPath:   projectPath,
 		ProjectMount:  bp.ProjectMount == nil || *bp.ProjectMount,
 		// NOTE: scoping with containerName is necessary to support multiple
