@@ -67,6 +67,11 @@ func boxStyle(contentW, contentH int) lipgloss.Style {
 		MaxHeight(contentH + 2)
 }
 
+// boxStyle with an explicit border color.
+func boxStyleBorder(contentW, contentH int, border lipgloss.Color) lipgloss.Style {
+	return boxStyle(contentW, contentH).BorderForeground(border)
+}
+
 // Builds a huh theme from the shared palette so the create/edit/confirm forms
 // match the main view.
 func formTheme() *huh.Theme {

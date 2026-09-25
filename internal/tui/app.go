@@ -75,14 +75,31 @@ func newNotification(text string, isErr, persistent bool) notification {
 	return n
 }
 
+type createFocus int
+
+const (
+	focusProfile createFocus = iota
+	focusModules
+	focusPath
+	focusMount
+	focusCreate
+)
+
 type createState struct {
-	profile     string // preset id, or "custom"
-	lastProfile string // previous profile, to sync the mount default on change
-	modules     []string
-	path        string
-	mount       bool
-	presets     []config.Preset
-	modlist     []config.Module
+	search textinput.Model // filters the preset list
+	path   textinput.Model // project path input
+
+	presets []config.Preset
+	modlist []config.Module
+
+	selected     string // resolved preset id, or "custom"
+	lastSelected string // previous selection, to sync the mount default
+
+	moduleSelected map[string]bool // selected module ids
+	modSel         int             // j/k cursor within modlist
+
+	mount bool
+	focus createFocus
 }
 
 type editState struct {
@@ -203,14 +220,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKey(msg)
 	}
 
-	if m.page != pageMain {
+	switch m.page {
+	case pageEdit, pageConfirm:
 		return m.updateForm(msg)
 	}
 	return m, nil
 }
 
 func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.page != pageMain {
+	switch m.page {
+	case pageCreate:
+		return m.handleCreateKey(msg)
+	case pageEdit, pageConfirm:
 		return m.updateForm(msg)
 	}
 
@@ -372,8 +393,13 @@ func (m model) actOnSelected(force bool) tea.Cmd {
 }
 
 func (m model) View() string {
-	if m.page != pageMain && m.form != nil {
-		return m.formView()
+	switch m.page {
+	case pageCreate:
+		return m.createView()
+	case pageEdit, pageConfirm:
+		if m.form != nil {
+			return m.formView()
+		}
 	}
 	return m.mainView()
 }

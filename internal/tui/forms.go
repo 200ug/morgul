@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode"
@@ -22,7 +21,6 @@ func (m model) updateForm(msg tea.Msg) (model, tea.Cmd) {
 	}
 	f, cmd := m.form.Update(msg)
 	m.form = f.(*huh.Form)
-	m.syncMountDefault()
 	switch m.form.State {
 	case huh.StateCompleted:
 		return m.finishForm()
@@ -45,30 +43,8 @@ func (m model) abortFormKey(key tea.KeyMsg) bool {
 	return !isInput
 }
 
-// Applies a preset's project mount as the default whenever the selected profile
-// changes, so the mount toggle starts from the right value.
-func (m model) syncMountDefault() {
-	if m.page != pageCreate || m.createSt == nil {
-		return
-	}
-	s := m.createSt
-	if s.profile == s.lastProfile {
-		return
-	}
-	s.lastProfile = s.profile
-	s.mount = false
-	if s.profile == "custom" {
-		return
-	}
-	if p, err := m.store.LoadPreset(s.profile); err == nil && p.ProjectMount != nil {
-		s.mount = *p.ProjectMount
-	}
-}
-
 func (m model) finishForm() (model, tea.Cmd) {
 	switch m.page {
-	case pageCreate:
-		return m.finalizeCreate()
 	case pageEdit:
 		return m.finishEdit()
 	case pageConfirm:
@@ -91,113 +67,6 @@ func (m model) notifyError(text string) (model, tea.Cmd) {
 	m2, cmd := m.resetToMain()
 	m2.notif = newNotification(text, true, false)
 	return m2, cmd
-}
-
-// --- create ---
-
-func (m model) startCreate() (model, tea.Cmd) {
-	presets, err := m.store.LoadPresets()
-	if err != nil {
-		return m.notifyError("Error: " + err.Error())
-	}
-	mods, err := m.store.LoadModules()
-	if err != nil {
-		return m.notifyError("Error: " + err.Error())
-	}
-	if len(presets) == 0 && len(mods) == 0 {
-		return m.notifyError("Error: no presets or modules found in " + m.store.Dir)
-	}
-	cwd, _ := os.Getwd()
-	m.createSt = &createState{
-		path:    cwd,
-		presets: presets,
-		modlist: mods,
-	}
-	m.page = pageCreate
-	m.form = m.buildCreateForm()
-	return m, m.form.Init()
-}
-
-func (m model) buildCreateForm() *huh.Form {
-	s := m.createSt
-
-	presetOpts := make([]huh.Option[string], 0, len(s.presets)+1)
-	for _, p := range s.presets {
-		presetOpts = append(presetOpts, huh.NewOption(p.ID, p.ID))
-	}
-	presetOpts = append(presetOpts, huh.NewOption("custom...", "custom"))
-	profile := huh.NewSelect[string]().Title("Profile").Options(presetOpts...).Value(&s.profile).Filtering(true)
-
-	moduleOpts := make([]huh.Option[string], 0, len(s.modlist))
-	for _, mod := range s.modlist {
-		moduleOpts = append(moduleOpts, huh.NewOption(mod.ID, mod.ID))
-	}
-	modules := huh.NewMultiSelect[string]().Title("Modules").Options(moduleOpts...).Value(&s.modules).Filtering(true)
-	modulesGroup := huh.NewGroup(modules).WithHideFunc(func() bool { return s.profile != "custom" })
-
-	pathInput := huh.NewInput().Title("Project path").Value(&s.path).SuggestionsFunc(m.pathSuggestions, nil)
-	mount := huh.NewConfirm().Title("Project mount").Value(&s.mount)
-
-	return huh.NewForm(
-		huh.NewGroup(profile),
-		modulesGroup,
-		huh.NewGroup(pathInput, mount),
-	).WithTheme(formTheme()).WithKeyMap(formKeyMap)
-}
-
-func (m model) finalizeCreate() (model, tea.Cmd) {
-	s := m.createSt
-	var bp *config.Blueprint
-	var err error
-	if s.profile == "custom" {
-		bp, err = m.resolver.ResolveCustom(s.modules, &s.mount)
-	} else {
-		bp, err = m.resolver.ResolvePreset(s.profile)
-		if err == nil {
-			mt := s.mount
-			bp.ProjectMount = &mt
-		}
-	}
-	if err != nil {
-		return m.notifyError("Error: " + err.Error())
-	}
-
-	projectPath := s.path
-	if projectPath == "" {
-		projectPath = "."
-	}
-	abs, err := filepath.Abs(projectPath)
-	if err != nil {
-		return m.notifyError("Error: " + err.Error())
-	}
-	if info, err := os.Stat(abs); err != nil || !info.IsDir() {
-		return m.notifyError("Error: project path is not a directory: " + abs)
-	}
-
-	m2, cmd := m.resetToMain()
-	m2.notif = newNotification("Creating container...", false, true)
-	return m2, tea.Batch(cmd, createCmd(m.client, bp, m.store.BaseDockerfile(), m.userHome, abs))
-}
-
-func (m model) pathSuggestions() []string {
-	if m.createSt == nil || m.createSt.path == "" {
-		return nil
-	}
-	dir := m.createSt.path
-	if !strings.HasSuffix(dir, "/") {
-		dir = filepath.Dir(dir)
-	}
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil
-	}
-	var out []string
-	for _, e := range entries {
-		if e.IsDir() {
-			out = append(out, filepath.Join(dir, e.Name())+"/")
-		}
-	}
-	return out
 }
 
 // --- edit ---
