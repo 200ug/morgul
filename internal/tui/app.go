@@ -126,7 +126,7 @@ func New(client podman.Client, store *config.Store, userHome string, colors conf
 	applyColors(colors)
 
 	ti := textinput.New()
-	ti.Placeholder = "search containers..."
+	ti.Placeholder = "Search containers..."
 	ti.Prompt = "> "
 	ti.CharLimit = 64
 	ti.Focus()
