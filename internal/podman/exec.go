@@ -12,11 +12,11 @@ import (
 
 const DetachKeys = "ctrl-x,ctrl-q"
 
-// ExecClient implements Client by shelling out to the podman binary.
+// Implements Client by shelling out to the podman binary.
 type ExecClient struct{}
 
-// NewClient verifies podman is available and (on darwin) ensures the podman
-// machine is running before returning a client.
+// Verifies podman is available and (on darwin) ensures the podman machine is
+// running before returning a client.
 func NewClient() (*ExecClient, error) {
 	if _, err := exec.LookPath("podman"); err != nil {
 		return nil, fmt.Errorf("podman not in PATH")

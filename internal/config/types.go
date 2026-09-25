@@ -1,7 +1,7 @@
 package config
 
-// DefaultShell is the program run when attaching to a container. tmux is used
-// so the user can pick their preferred shell via their own tmux.conf.
+// Program run when attaching to a container. tmux is used so the user can pick
+// their preferred shell via their own tmux.conf.
 const DefaultShell = "/usr/bin/tmux"
 
 // A host file/dir to copy into the image at build time.

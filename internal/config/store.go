@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// Store loads modules, presets, and the base dockerfile from a single config
+// Loads modules, presets, and the base dockerfile from a single config
 // directory (defaults to ~/.config/morgul).
 type Store struct {
 	Dir string

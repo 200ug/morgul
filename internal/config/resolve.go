@@ -2,7 +2,7 @@ package config
 
 import "fmt"
 
-// Resolver flattens presets or ad-hoc module lists into a blueprint.
+// Flattens presets or ad-hoc module lists into a blueprint.
 type Resolver struct {
 	Store *Store
 }

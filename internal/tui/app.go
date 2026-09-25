@@ -37,8 +37,8 @@ const (
 	podMinW  = 20
 )
 
-// confirmKeyRe matches the confirm field's standalone accept/reject shortcut
-// keys, which huh renders as lowercase "y"/"n".
+// Matches the confirm field's standalone accept/reject shortcut keys, which
+// huh renders as lowercase "y"/"n".
 var confirmKeyRe = regexp.MustCompile(`\b[yn]\b`)
 
 type mode int

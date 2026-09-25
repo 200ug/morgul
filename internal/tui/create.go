@@ -13,7 +13,7 @@ import (
 	"codeberg.org/2ug/morgul/internal/config"
 )
 
-// startCreate enters the single-view container creation form.
+// Enters the single-view container creation form.
 func (m model) startCreate() (model, tea.Cmd) {
 	presets, err := m.store.LoadPresets()
 	if err != nil {
@@ -55,7 +55,7 @@ func (m model) startCreate() (model, tea.Cmd) {
 	return m, blink
 }
 
-// handleCreateKey routes a key to the focused pane of the creation view.
+// Routes a key to the focused pane of the creation view.
 func (m model) handleCreateKey(msg tea.KeyMsg) (model, tea.Cmd) {
 	s := m.createSt
 
@@ -130,7 +130,7 @@ func (m *model) setCreateFocus(f createFocus) {
 	}
 }
 
-// createFocusList returns the focusable panes in left-to-right order, omitting
+// Returns the focusable panes in left-to-right order, omitting
 // the modules pane unless "custom" is selected.
 func (m model) createFocusList() []createFocus {
 	if m.createSt.selected == "custom" {
@@ -206,7 +206,7 @@ func (m model) createSubmitKey(msg tea.KeyMsg) (model, tea.Cmd) {
 	return m, nil
 }
 
-// profileOptions returns the display names shown in the preset list, with the
+// Returns the display names shown in the preset list, with the
 // pseudo "custom..." option last.
 func (m model) profileOptions() []string {
 	names := make([]string, 0, len(m.createSt.presets)+1)
@@ -217,7 +217,7 @@ func (m model) profileOptions() []string {
 	return names
 }
 
-// rankedProfileIndices returns the preset-list order for the current search
+// Returns the preset-list order for the current search
 // query: ranked fuzzy matches, or every option in order when the query is empty.
 func (m model) rankedProfileIndices() []int {
 	names := m.profileOptions()
@@ -231,7 +231,7 @@ func (m model) rankedProfileIndices() []int {
 	return fuzzyFind(m.createSt.search.Value(), names)
 }
 
-// selectedProfile resolves the preset id (or "custom") currently picked by the
+// Resolves the preset id (or "custom") currently picked by the
 // search filter: the top fuzzy match, or the first option when the query is
 // empty.
 func (m model) selectedProfile() string {
@@ -255,7 +255,7 @@ func (m model) selectedProfile() string {
 	return name
 }
 
-// syncCreateMount applies the selected preset's project mount as the default
+// Applies the selected preset's project mount as the default
 // whenever the selection changes.
 func (m model) syncCreateMount() {
 	s := m.createSt
@@ -394,7 +394,7 @@ func createBox(contentW, contentH int, active bool) lipgloss.Style {
 	return boxStyleBorder(contentW, contentH, colorDim)
 }
 
-// createStageWidth returns the width of the widest line in the stage pane.
+// Returns the width of the widest line in the stage pane.
 func (m model) createStageWidth() int {
 	s := m.createSt
 	w := 0

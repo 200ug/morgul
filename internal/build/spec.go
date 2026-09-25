@@ -14,8 +14,8 @@ import (
 	"codeberg.org/2ug/morgul/internal/podman"
 )
 
-// Spec is the persisted configuration for a single container, stored as
-// pod_spec.json inside the project's .morgul/ directory.
+// Persisted configuration for a single container, stored as pod_spec.json
+// inside the project's .morgul/ directory.
 type Spec struct {
 	ContainerName  string                 `json:"container_name"`
 	Hostname       string                 `json:"hostname"`
