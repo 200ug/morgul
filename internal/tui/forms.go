@@ -17,8 +17,12 @@ import (
 )
 
 func (m model) updateForm(msg tea.Msg) (model, tea.Cmd) {
+	if key, ok := msg.(tea.KeyMsg); ok && m.abortFormKey(key) {
+		return m.resetToMain()
+	}
 	f, cmd := m.form.Update(msg)
 	m.form = f.(*huh.Form)
+	m.syncMountDefault()
 	switch m.form.State {
 	case huh.StateCompleted:
 		return m.finishForm()
@@ -28,10 +32,43 @@ func (m model) updateForm(msg tea.Msg) (model, tea.Cmd) {
 	return m, cmd
 }
 
+// Reports whether a key should exit the current form: esc always, and q unless
+// the focused field is a text input (where q is typed).
+func (m model) abortFormKey(key tea.KeyMsg) bool {
+	if key.Type == tea.KeyEsc {
+		return true
+	}
+	if key.Type != tea.KeyRunes || len(key.Runes) != 1 || key.Runes[0] != 'q' {
+		return false
+	}
+	_, isInput := m.form.GetFocusedField().(*huh.Input)
+	return !isInput
+}
+
+// Applies a preset's project mount as the default whenever the selected profile
+// changes, so the mount toggle starts from the right value.
+func (m model) syncMountDefault() {
+	if m.page != pageCreate || m.createSt == nil {
+		return
+	}
+	s := m.createSt
+	if s.profile == s.lastProfile {
+		return
+	}
+	s.lastProfile = s.profile
+	s.mount = false
+	if s.profile == "custom" {
+		return
+	}
+	if p, err := m.store.LoadPreset(s.profile); err == nil && p.ProjectMount != nil {
+		s.mount = *p.ProjectMount
+	}
+}
+
 func (m model) finishForm() (model, tea.Cmd) {
 	switch m.page {
 	case pageCreate:
-		return m.finishCreateStage()
+		return m.finalizeCreate()
 	case pageEdit:
 		return m.finishEdit()
 	case pageConfirm:
@@ -72,7 +109,6 @@ func (m model) startCreate() (model, tea.Cmd) {
 	}
 	cwd, _ := os.Getwd()
 	m.createSt = &createState{
-		stage:   0,
 		path:    cwd,
 		presets: presets,
 		modlist: mods,
@@ -84,52 +120,29 @@ func (m model) startCreate() (model, tea.Cmd) {
 
 func (m model) buildCreateForm() *huh.Form {
 	s := m.createSt
-	switch s.stage {
-	case 0:
-		opts := make([]huh.Option[string], 0, len(s.presets)+1)
-		for _, p := range s.presets {
-			opts = append(opts, huh.NewOption(p.ID, p.ID))
-		}
-		opts = append(opts, huh.NewOption("custom...", "custom"))
-		sel := huh.NewSelect[string]().Title("Profile").Options(opts...).Value(&s.profile).Filtering(true)
-		return huh.NewForm(huh.NewGroup(sel)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
-	case 1:
-		opts := make([]huh.Option[string], 0, len(s.modlist))
-		for _, mod := range s.modlist {
-			opts = append(opts, huh.NewOption(mod.ID, mod.ID))
-		}
-		ms := huh.NewMultiSelect[string]().Title("Modules").Options(opts...).Value(&s.modules).Filtering(true)
-		return huh.NewForm(huh.NewGroup(ms)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
-	default:
-		pathInput := huh.NewInput().Title("Project path").Value(&s.path).SuggestionsFunc(m.pathSuggestions, nil)
-		mount := huh.NewConfirm().Title("Project mount").Value(&s.mount)
-		return huh.NewForm(huh.NewGroup(pathInput, mount)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
-	}
-}
 
-func (m model) finishCreateStage() (model, tea.Cmd) {
-	s := m.createSt
-	switch s.stage {
-	case 0:
-		if s.profile == "custom" {
-			s.stage = 1
-		} else {
-			if p, err := m.store.LoadPreset(s.profile); err == nil {
-				if p.ProjectMount != nil {
-					s.mount = *p.ProjectMount
-				}
-			}
-			s.stage = 2
-		}
-		m.form = m.buildCreateForm()
-		return m, m.form.Init()
-	case 1:
-		s.stage = 2
-		m.form = m.buildCreateForm()
-		return m, m.form.Init()
-	default:
-		return m.finalizeCreate()
+	presetOpts := make([]huh.Option[string], 0, len(s.presets)+1)
+	for _, p := range s.presets {
+		presetOpts = append(presetOpts, huh.NewOption(p.ID, p.ID))
 	}
+	presetOpts = append(presetOpts, huh.NewOption("custom...", "custom"))
+	profile := huh.NewSelect[string]().Title("Profile").Options(presetOpts...).Value(&s.profile).Filtering(true)
+
+	moduleOpts := make([]huh.Option[string], 0, len(s.modlist))
+	for _, mod := range s.modlist {
+		moduleOpts = append(moduleOpts, huh.NewOption(mod.ID, mod.ID))
+	}
+	modules := huh.NewMultiSelect[string]().Title("Modules").Options(moduleOpts...).Value(&s.modules).Filtering(true)
+	modulesGroup := huh.NewGroup(modules).WithHideFunc(func() bool { return s.profile != "custom" })
+
+	pathInput := huh.NewInput().Title("Project path").Value(&s.path).SuggestionsFunc(m.pathSuggestions, nil)
+	mount := huh.NewConfirm().Title("Project mount").Value(&s.mount)
+
+	return huh.NewForm(
+		huh.NewGroup(profile),
+		modulesGroup,
+		huh.NewGroup(pathInput, mount),
+	).WithTheme(formTheme()).WithKeyMap(formKeyMap)
 }
 
 func (m model) finalizeCreate() (model, tea.Cmd) {

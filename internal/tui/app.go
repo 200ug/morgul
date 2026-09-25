@@ -76,13 +76,13 @@ func newNotification(text string, isErr, persistent bool) notification {
 }
 
 type createState struct {
-	stage   int
-	profile string // preset id, or "custom"
-	modules []string
-	path    string
-	mount   bool
-	presets []config.Preset
-	modlist []config.Module
+	profile     string // preset id, or "custom"
+	lastProfile string // previous profile, to sync the mount default on change
+	modules     []string
+	path        string
+	mount       bool
+	presets     []config.Preset
+	modlist     []config.Module
 }
 
 type editState struct {
