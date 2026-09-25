@@ -27,7 +27,6 @@ type VirtualVolume struct {
 // options that can be mixed into a container blueprint.
 type Module struct {
 	ID             string          `json:"id"`
-	Description    string          `json:"description"`
 	Packages       []string        `json:"packages"`
 	Installers     []string        `json:"installers"`
 	Configs        []Config        `json:"configs"`
@@ -39,7 +38,6 @@ type Module struct {
 // A named, ordered selection of modules plus project-level defaults.
 type Preset struct {
 	ID           string   `json:"id"`
-	Description  string   `json:"description"`
 	ProjectMount *bool    `json:"project_mount"`
 	Modules      []string `json:"modules"`
 }

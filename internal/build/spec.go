@@ -25,7 +25,6 @@ type Spec struct {
 	ProjectPath    string                 `json:"project_path"`
 	ProjectMount   bool                   `json:"project_mount"`
 	BuildCtx       string                 `json:"-"`
-	ConfigsDir     string                 `json:"-"`
 	BuildArgs      map[string]string      `json:"build_args"`
 	VirtualVolumes []config.VirtualVolume `json:"virtual_volumes"`
 	Ports          []config.PortMap       `json:"ports"`
@@ -49,8 +48,7 @@ func NewSpec(bp *config.Blueprint, projectPath, containerName, hostname string) 
 		ProjectMount:  bp.ProjectMount == nil || *bp.ProjectMount,
 		// NOTE: scoping with containerName is necessary to support multiple
 		//       containers sharing the same project (.morgul) directory.
-		BuildCtx:   filepath.Join(projectPath, ".morgul", containerName),
-		ConfigsDir: filepath.Join(projectPath, ".morgul", containerName, "configs"),
+		BuildCtx: filepath.Join(projectPath, ".morgul", containerName),
 		BuildArgs: map[string]string{
 			"UID": strconv.Itoa(os.Getuid()),
 			"GID": strconv.Itoa(os.Getgid()),
@@ -83,7 +81,6 @@ func LoadSpec(projectPath, containerName string) (*Spec, error) {
 	}
 	// recompute derived paths to support container recreation
 	s.BuildCtx = filepath.Join(s.ProjectPath, ".morgul", s.ContainerName)
-	s.ConfigsDir = filepath.Join(s.BuildCtx, "configs")
 	return &s, nil
 }
 

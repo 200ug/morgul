@@ -26,9 +26,6 @@ func TestNewSpec_BuildCtxScopedByContainerName(t *testing.T) {
 	if spec.BuildCtx != filepath.Join(projectPath, ".morgul", containerName) {
 		t.Errorf("BuildCtx: got %q, want %q", spec.BuildCtx, filepath.Join(projectPath, ".morgul", containerName))
 	}
-	if spec.ConfigsDir != filepath.Join(projectPath, ".morgul", containerName, "configs") {
-		t.Errorf("ConfigsDir: got %q", spec.ConfigsDir)
-	}
 }
 
 func TestNewSpec_DifferentContainersDifferentPaths(t *testing.T) {

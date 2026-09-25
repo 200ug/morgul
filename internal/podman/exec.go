@@ -176,8 +176,6 @@ func (c *ExecClient) ContainerExists(name string) (bool, bool) {
 
 func (c *ExecClient) run(args ...string) error {
 	cmd := exec.Command("podman", args...)
-	cmd.Stdout = nil
-	cmd.Stderr = nil
 	return cmd.Run()
 }
 

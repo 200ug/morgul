@@ -4,8 +4,6 @@ import (
 	"math/rand/v2"
 )
 
-const VersionCode = "v3.0.0"
-
 var Hostnames = []string{
 	"atomic",
 	"yugen",
