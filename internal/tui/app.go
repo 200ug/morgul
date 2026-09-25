@@ -54,7 +54,6 @@ const (
 	pageMain page = iota
 	pageCreate
 	pageEdit
-	pageConfirm
 )
 
 type notification struct {
@@ -113,7 +112,6 @@ type editState struct {
 type confirmState struct {
 	kind string // "remove" or "purge"
 	name string
-	ok   bool
 }
 
 type model struct {
@@ -221,7 +219,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch m.page {
-	case pageEdit, pageConfirm:
+	case pageEdit:
 		return m.updateForm(msg)
 	}
 	return m, nil
@@ -231,8 +229,13 @@ func (m model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.page {
 	case pageCreate:
 		return m.handleCreateKey(msg)
-	case pageEdit, pageConfirm:
+	case pageEdit:
 		return m.updateForm(msg)
+	}
+
+	// a destructive action is awaiting y/n confirmation
+	if m.confirmSt != nil {
+		return m.handleConfirmKey(msg)
 	}
 
 	switch msg.Type {
@@ -392,11 +395,68 @@ func (m model) actOnSelected(force bool) tea.Cmd {
 	return stopCmd(m.client, c.Name, force)
 }
 
+// Prompts for a y/n confirmation of a destructive action, shown inline at the
+// bottom of the main view.
+func (m model) startConfirm(kind string) (model, tea.Cmd) {
+	s := &confirmState{kind: kind}
+	if kind != "purge" {
+		c := m.selectedContainer()
+		if c == nil {
+			return m.notifyError("Error: no container selected")
+		}
+		s.name = c.Name
+	}
+	m.confirmSt = s
+	return m, nil
+}
+
+func (m model) handleConfirmKey(msg tea.KeyMsg) (model, tea.Cmd) {
+	if msg.Type == tea.KeyRunes && len(msg.Runes) == 1 && (msg.Runes[0] == 'y' || msg.Runes[0] == 'Y') {
+		return m.confirmExecute()
+	}
+	return m.confirmCancel()
+}
+
+func (m model) confirmExecute() (model, tea.Cmd) {
+	s := m.confirmSt
+	m.confirmSt = nil
+	if s.kind == "purge" {
+		m.notif = newNotification("Purging...", false, true)
+		return m, purgeCmd(m.client, m.containers)
+	}
+	var c *podman.Container
+	for i := range m.containers {
+		if m.containers[i].Name == s.name {
+			c = &m.containers[i]
+			break
+		}
+	}
+	if c == nil {
+		m.notif = newNotification("Error: container not found", true, false)
+		return m, nil
+	}
+	m.notif = newNotification("Removing container...", false, true)
+	return m, removeCmd(m.client, *c)
+}
+
+func (m model) confirmCancel() (model, tea.Cmd) {
+	m.confirmSt = nil
+	return m, nil
+}
+
+func (m model) confirmText() string {
+	s := m.confirmSt
+	if s.kind == "purge" {
+		return fmt.Sprintf("Purge all %d container(s)? This stops, removes, and deletes every container, image, volume, and .morgul dir. This cannot be undone. (y/n)", len(m.containers))
+	}
+	return fmt.Sprintf("Remove container %s? This also deletes its image and .morgul data. (y/n)", s.name)
+}
+
 func (m model) View() string {
 	switch m.page {
 	case pageCreate:
 		return m.createView()
-	case pageEdit, pageConfirm:
+	case pageEdit:
 		if m.form != nil {
 			return m.formView()
 		}
@@ -494,7 +554,11 @@ func (m model) mainView() string {
 	if podH > midH {
 		midH = podH
 	}
-	if cap := maxH - 8; midH > cap {
+	confirmH := 0
+	if m.confirmSt != nil {
+		confirmH = 1
+	}
+	if cap := maxH - 8 - confirmH; midH > cap {
 		midH = cap
 	}
 	if midH < 1 {
@@ -514,6 +578,10 @@ func (m model) mainView() string {
 
 	middle := lipgloss.JoinHorizontal(lipgloss.Top, list, pod)
 	body := lipgloss.JoinVertical(lipgloss.Top, search, middle, notif)
+	if m.confirmSt != nil {
+		confirm := padWidth(fullW + 4).Render(confirmStyle.Render(m.confirmText()))
+		body = lipgloss.JoinVertical(lipgloss.Top, body, confirm)
+	}
 	return lipgloss.NewStyle().Padding(padTop, padRight, padBottom, padLeft).Render(body)
 }
 

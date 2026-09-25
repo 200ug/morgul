@@ -25,6 +25,7 @@ var (
 	notifError    lipgloss.Style
 	modeStyle     lipgloss.Style
 	labelStyle    lipgloss.Style
+	confirmStyle  lipgloss.Style
 )
 
 func init() {
@@ -48,6 +49,7 @@ func applyColors(c config.Colors) {
 	notifError = lipgloss.NewStyle().Foreground(colorError)
 	modeStyle = lipgloss.NewStyle().Foreground(colorWarning)
 	labelStyle = lipgloss.NewStyle().Foreground(colorAccent)
+	confirmStyle = lipgloss.NewStyle().Bold(true).Foreground(colorError)
 }
 
 func padWidth(w int) lipgloss.Style {

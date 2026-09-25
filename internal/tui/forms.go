@@ -12,7 +12,6 @@ import (
 
 	"codeberg.org/2ug/morgul/internal/build"
 	"codeberg.org/2ug/morgul/internal/config"
-	"codeberg.org/2ug/morgul/internal/podman"
 )
 
 func (m model) updateForm(msg tea.Msg) (model, tea.Cmd) {
@@ -47,8 +46,6 @@ func (m model) finishForm() (model, tea.Cmd) {
 	switch m.page {
 	case pageEdit:
 		return m.finishEdit()
-	case pageConfirm:
-		return m.finishConfirm()
 	}
 	return m.resetToMain()
 }
@@ -130,67 +127,6 @@ func (m model) finishEdit() (model, tea.Cmd) {
 	m2, cmd := m.resetToMain()
 	m2.notif = newNotification("Recreating container...", false, true)
 	return m2, tea.Batch(cmd, recreateCmd(m.client, spec))
-}
-
-// --- confirm ---
-
-func (m model) startConfirm(kind string) (model, tea.Cmd) {
-	if kind == "purge" {
-		m.confirmSt = &confirmState{kind: "purge"}
-	} else {
-		c := m.selectedContainer()
-		if c == nil {
-			return m.notifyError("Error: no container selected")
-		}
-		m.confirmSt = &confirmState{kind: "remove", name: c.Name}
-	}
-	m.page = pageConfirm
-	m.form = m.buildConfirmForm()
-	return m, m.form.Init()
-}
-
-func (m model) buildConfirmForm() *huh.Form {
-	s := m.confirmSt
-	var confirm *huh.Confirm
-	if s.kind == "purge" {
-		confirm = huh.NewConfirm().
-			Title(fmt.Sprintf("Purge all %d container(s)?", len(m.containers))).
-			Description("Stop, remove, and delete all containers, images, volumes, and .morgul dirs. This cannot be undone.").
-			Affirmative("Purge").Negative("Cancel").
-			Value(&s.ok)
-	} else {
-		confirm = huh.NewConfirm().
-			Title("Remove container " + s.name + "?").
-			Description("This will also delete its image and .morgul data.").
-			Affirmative("Remove").Negative("Cancel").
-			Value(&s.ok)
-	}
-	return huh.NewForm(huh.NewGroup(confirm)).WithTheme(formTheme()).WithKeyMap(formKeyMap)
-}
-
-func (m model) finishConfirm() (model, tea.Cmd) {
-	s := m.confirmSt
-	m2, cmd := m.resetToMain()
-	if !s.ok {
-		return m2, cmd
-	}
-	if s.kind == "purge" {
-		m2.notif = newNotification("Purging...", false, true)
-		return m2, tea.Batch(cmd, purgeCmd(m.client, m.containers))
-	}
-	var c *podman.Container
-	for i := range m.containers {
-		if m.containers[i].Name == s.name {
-			c = &m.containers[i]
-			break
-		}
-	}
-	if c == nil {
-		m2.notif = newNotification("Error: container not found", true, false)
-		return m2, cmd
-	}
-	m2.notif = newNotification("Removing container...", false, true)
-	return m2, tea.Batch(cmd, removeCmd(m.client, *c))
 }
 
 // --- formatting/parsing ---
