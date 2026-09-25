@@ -207,13 +207,13 @@ func (m model) createSubmitKey(msg tea.KeyMsg) (model, tea.Cmd) {
 }
 
 // Returns the display names shown in the preset list, with the
-// pseudo "custom..." option last.
+// pseudo "custom" option last.
 func (m model) profileOptions() []string {
 	names := make([]string, 0, len(m.createSt.presets)+1)
 	for _, p := range m.createSt.presets {
 		names = append(names, p.ID)
 	}
-	names = append(names, "custom...")
+	names = append(names, "custom")
 	return names
 }
 
@@ -249,7 +249,7 @@ func (m model) selectedProfile() string {
 		return ""
 	}
 	name := names[matches[0]]
-	if name == "custom..." {
+	if name == "custom" {
 		return "custom"
 	}
 	return name
