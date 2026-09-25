@@ -7,3 +7,4 @@ mkdir -p $CFG_DIR/modules $CFG_DIR/presets
 [[ -d examples/presets ]] && cp examples/presets/* $CFG_DIR/presets/.
 [[ -f Dockerfile.base ]] && cp Dockerfile.base $CFG_DIR/.
 [[ -f examples/colors.json ]] && cp examples/colors.json $CFG_DIR/.
+
