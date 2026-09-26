@@ -2,6 +2,8 @@
 
 Declarative (development) pod management tool for rootless Podman.
 
+![TUI examples with the default colorscheme](./docs/morgul.png)
+
 ## Quickstart
 
 Run the included `scripts/init.sh` shell script to copy the example modules, presets, and the base template into `~/.config/morgul`. Then run `scripts/build.sh` which produces the plug-and-play binary into `bin`.
